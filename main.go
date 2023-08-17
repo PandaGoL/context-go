@@ -60,25 +60,24 @@ func (s *Service) getOrderByID(id int64) (*order, error) {
 	}, nil
 }
 
+type result struct {
+	o   *order
+	err error
+}
+
 func (s *Service) getOrderByIDWrapper(ctx context.Context, id int64) (*order, error) {
 
-	errChan := make(chan error)
-	orderChan := make(chan *order)
+	orderChan := make(chan *result)
+	res := &result{}
 	go func() {
-		o, err := s.getOrderByID(id)
-		if err != nil {
-			errChan <- err
-		} else {
-			orderChan <- o
-		}
+		res.o, res.err = s.getOrderByID(id)
+		orderChan <- res
 	}()
 	select {
 	case <-ctx.Done():
 		return nil, ErrTimeout
-	case err := <-errChan:
-		return nil, err
-	case o := <-orderChan:
-		return o, nil
+	case order := <-orderChan:
+		return order.o, order.err
 	}
 }
 
